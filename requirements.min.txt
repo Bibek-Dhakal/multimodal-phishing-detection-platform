@@ -1,0 +1,15 @@
+pandas
+numpy
+matplotlib
+seaborn
+scikit-learn
+xgboost
+torch
+torchvision
+torchaudio
+scipy
+fastapi
+uvicorn
+streamlit
+jupyter
+
