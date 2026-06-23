@@ -1,0 +1,27 @@
+services:
+  api:
+    build: .
+    container_name: phishing_api
+    # Run the FastAPI backend using Uvicorn
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    environment:
+      - PHISHING_THRESHOLD=0.85
+    volumes:
+      - .:/app  # Maps local code to container for live-reloading during dev
+
+  ui:
+    build: .
+    container_name: phishing_ui
+    # Run the Streamlit frontend
+    command: streamlit run app/dashboard.py --server.port 8501 --server.address 0.0.0.0
+    ports:
+      - "8501:8501"
+    environment:
+      # Use internal docker networking to reach the API container
+      - BACKEND_API_URL=http://api:8000/predict/multimodal
+    depends_on:
+      - api
+    volumes:
+      - .:/app

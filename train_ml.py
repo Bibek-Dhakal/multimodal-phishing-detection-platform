@@ -3,6 +3,7 @@ import pickle
 
 import pandas as pd
 from scipy.io import arff
+from sklearn.calibration import CalibratedClassifierCV
 from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
@@ -59,11 +60,11 @@ def train_and_evaluate():
         "Logistic Regression": LogisticRegression(max_iter=1000, random_state=42),
         "Naive Bayes": GaussianNB(),
         "K-Nearest Neighbors": KNeighborsClassifier(n_neighbors=5),
-        "Support Vector Machine": SVC(probability=True, random_state=42),
+        "Support Vector Machine": CalibratedClassifierCV(SVC(random_state=42), ensemble=False),
         "Decision Tree": DecisionTreeClassifier(random_state=42),
         "Random Forest": RandomForestClassifier(n_estimators=100, random_state=42),
         "AdaBoost": AdaBoostClassifier(random_state=42),
-        "XGBoost": XGBClassifier(use_label_encoder=False, eval_metric='logloss', random_state=42)
+        "XGBoost": XGBClassifier(eval_metric='logloss', random_state=42)
     }
 
     results = []

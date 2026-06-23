@@ -1,9 +1,10 @@
 # Multi-Modal Phishing Intelligence & Defense Platform
 
-![Python](https://img.shields.io/badge/Python-3.9%2B-blue)
+![Python](https://img.shields.io/badge/Python-3.11%2B-blue)
 ![PyTorch](https://img.shields.io/badge/PyTorch-Deep%20Learning-ee4c2c)
 ![FastAPI](https://img.shields.io/badge/FastAPI-Backend-009688)
 ![Streamlit](https://img.shields.io/badge/Streamlit-UI-FF4B4B)
+![Docker](https://img.shields.io/badge/Docker-Containerized-2496ED)
 
 ## Project Overview
 
@@ -20,8 +21,8 @@ Instead of relying solely on isolated machine learning models, this platform com
 3. **Continuous Heuristics:** Uses Shannon Entropy, DuckDuckGo SERP indexing, and Fuzzy String Matching (Levenshtein
    Distance) to prevent false positives and catch zero-day typosquatting / brand spoofing.
 
-The backend is modularized via FastAPI, utilizing a Logistic Calibrated Matrix to aggregate predictions and eliminate "
-alarm fatigue," displaying results through a Streamlit dashboard.
+The backend is modularized via FastAPI, containerized using Docker, and utilizes a Logistic Calibrated Matrix to
+aggregate predictions and eliminate "alarm fatigue," displaying results through a Streamlit dashboard.
 
 ---
 
@@ -43,7 +44,8 @@ For a deep dive into the methodology and technical details, please refer to the 
 4. **Inference Services**: A decoupled FastAPI backend (`app/main.py` -> `app/services/`) that loads models via a
    Registry, applies Logistic Calibrated Penalties, and serves consensus predictions.
 5. **User Interface**: Streamlit dashboard (`app/dashboard.py`) for security analysts to test web profile vectors and
-   raw URLs natively, powered by `.env` configurations.
+   raw URLs natively.
+6. **MLOps Orchestration**: Multi-container deployment managed via `docker-compose`.
 
 ---
 
@@ -51,12 +53,25 @@ For a deep dive into the methodology and technical details, please refer to the 
 
 ### 1. Prerequisites
 
-- Python 3.9+
-- *(Optional but recommended)* NVIDIA GPU with CUDA support for accelerated PyTorch training.
+- Docker and Docker Compose installed on your machine.
+- *(Optional)* Python 3.9+ if running locally without Docker.
 
-### 2. Environment Setup
+### 2. Running with Docker (Recommended)
 
-Clone the repository (or extract the folder) and create a virtual environment:
+The easiest way to boot the entire platform (both the FastAPI backend and Streamlit frontend) is using Docker Compose.
+
+Ensure you have your models trained and saved in the `models/` folder (or run the training scripts first). Then execute:
+
+```bash
+docker-compose up --build
+```
+
+- The **FastAPI Backend** will be available at: http://localhost:8000
+- The **Streamlit Dashboard** will be available at: http://localhost:8501
+
+### 3. Local Development Setup (Without Docker)
+
+Clone the repository and create a virtual environment:
 
 ```bash
 python -m venv venv
@@ -69,50 +84,29 @@ source venv/bin/activate
 Install dependencies:
 
 ```bash
-pip install pandas numpy matplotlib seaborn scikit-learn xgboost torch torchvision torchaudio scipy fastapi uvicorn streamlit python-whois python-multipart python-dotenv duckduckgo-search
+pip install -r requirements.txt
 ```
 
-### 3. Data Setup
-
-Ensure the UCI Phishing dataset (`dataset.arff`) is located in the `data/` directory. Create a `.env` file in the root
-if you need to override the backend API URL.
-
----
-
-## Running the Pipeline
-
-### 1. Train the Models
-
-If you wish to retrain the models from scratch, run the training scripts. This will output serialized `.pkl` and `.pt`
-files to the `models/` directory.
+Train the models:
 
 ```bash
-# Train the traditional ML models
 python train_ml.py
-
-# Train the PyTorch ANN
 python train_ann.py
 ```
 
-### 2. Boot the Production Application
+Run the application in two separate terminals:
 
-The application requires two terminals. Ensure your virtual environment is activated in both.
-
-**Terminal 1: Start the FastAPI Backend**
+**Terminal 1 (Backend):**
 
 ```bash
 uvicorn app.main:app --reload
 ```
 
-*(The API will be available at http://127.0.0.1:8000. It will automatically download the OpenPhish feed on boot).*
-
-**Terminal 2: Start the Streamlit Dashboard**
+**Terminal 2 (Frontend):**
 
 ```bash
 streamlit run app/dashboard.py
 ```
-
-*(The Dashboard will open automatically in your browser at http://localhost:8501)*
 
 ---
 
