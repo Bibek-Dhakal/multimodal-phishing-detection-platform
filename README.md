@@ -14,13 +14,14 @@ project is a **Phishing Detection System** that automatically evaluates suspicio
 Instead of relying solely on isolated machine learning models, this platform combines:
 
 1. **Live Threat Intelligence:** Integrates OpenPhish zero-day feeds via HTTPS/RDAP.
-2. **Structural ML/DL Engines:** Benchmarks 8 traditional Machine Learning algorithms (with **XGBoost** achieving top
-   accuracy) and a custom PyTorch **Artificial Neural Network (ANN)**.
-3. **Continuous Heuristics:** Uses Shannon Entropy and mathematical gradient penalties to prevent false positives and
-   catch zero-day obfuscation.
+2. **Structural ML/DL Engines:** Benchmarks 8 traditional Machine Learning algorithms. **XGBoost** achieves top accuracy
+   and serves as the primary production engine, while a custom PyTorch **Artificial Neural Network (ANN)** acts as a
+   secondary experimental shadow model.
+3. **Continuous Heuristics:** Uses Shannon Entropy, DuckDuckGo SERP indexing, and Fuzzy String Matching (Levenshtein
+   Distance) to prevent false positives and catch zero-day typosquatting / brand spoofing.
 
-Both engines run concurrently via a FastAPI backend, utilizing a Weighted Priority Matrix to aggregate predictions and
-completely eliminate "alarm fatigue," displaying results through a Streamlit dashboard.
+The backend is modularized via FastAPI, utilizing a Logistic Calibrated Matrix to aggregate predictions and eliminate "
+alarm fatigue," displaying results through a Streamlit dashboard.
 
 ---
 
@@ -28,7 +29,7 @@ completely eliminate "alarm fatigue," displaying results through a Streamlit das
 
 For a deep dive into the methodology and technical details, please refer to the following documents:
 
-* [System Architecture](docs/architecture.md) - Details the Data Pipeline, ML/DL Models, and App Deployment.
+* [System Architecture](docs/architecture.md) - Details the Modular Data Pipeline, ML/DL Models, and App Deployment.
 * [Dataset Information](docs/dataset_info.md) - Explains the UCI Phishing dataset features and structure.
 
 ---
@@ -36,14 +37,13 @@ For a deep dive into the methodology and technical details, please refer to the 
 ## Architecture
 
 1. **Threat Intelligence Layer**: Live TTL caching of the OpenPhish database and local Apex domain whitelisting.
-2. **Machine Learning Engine**: Benchmarks Logistic Regression, Naive Bayes, KNN, SVM, Decision Tree, Random Forest,
-   AdaBoost, and XGBoost.
-3. **Deep Learning Engine**: A Dense Multi-Layer Perceptron (MLP) built in PyTorch to evaluate complex non-linear
-   patterns in structured features.
-4. **Inference Gateway**: FastAPI backend (`app/main.py`) that loads models into memory, applies Probabilistic
-   Thresholding (0.85), and serves consensus predictions.
+2. **Production Machine Learning Engine**: Evaluates URLs structurally using the highly accurate XGBoost algorithm.
+3. **Experimental Deep Learning Engine**: A Dense Multi-Layer Perceptron (MLP) built in PyTorch with Batch Normalization
+   and Dropouts to evaluate non-linear patterns.
+4. **Inference Services**: A decoupled FastAPI backend (`app/main.py` -> `app/services/`) that loads models via a
+   Registry, applies Logistic Calibrated Penalties, and serves consensus predictions.
 5. **User Interface**: Streamlit dashboard (`app/dashboard.py`) for security analysts to test web profile vectors and
-   raw URLs natively.
+   raw URLs natively, powered by `.env` configurations.
 
 ---
 
@@ -69,12 +69,13 @@ source venv/bin/activate
 Install dependencies:
 
 ```bash
-pip install pandas numpy matplotlib seaborn scikit-learn xgboost torch torchvision torchaudio scipy fastapi uvicorn streamlit python-whois python-multipart
+pip install pandas numpy matplotlib seaborn scikit-learn xgboost torch torchvision torchaudio scipy fastapi uvicorn streamlit python-whois python-multipart python-dotenv duckduckgo-search
 ```
 
 ### 3. Data Setup
 
-Ensure the UCI Phishing dataset (`dataset.arff`) is located in the `data/` directory.
+Ensure the UCI Phishing dataset (`dataset.arff`) is located in the `data/` directory. Create a `.env` file in the root
+if you need to override the backend API URL.
 
 ---
 
@@ -120,7 +121,7 @@ streamlit run app/dashboard.py
 The roadmap for this platform includes scaling into a Multi-Modal architecture:
 
 * **NLP Linguistic Engine**: Integrating a fine-tuned `distilroberta-base` Transformer to analyze raw URL strings for
-  typosquatting and malicious subdomains.
+  malicious subdomains.
 * **Computer Vision Engine**: Utilizing a pre-trained `EfficientNet-B0` CNN to analyze website screenshots for spatial
   layout anomalies and brand logo spoofing.
 

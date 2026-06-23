@@ -9,6 +9,9 @@ from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, TensorDataset
 
+# Import shared ANN architecture
+from app.neural_network import PhishingANN
+
 # Configuration
 DATA_PATH = "data/phishing_tabular_data/dataset.arff"
 MODEL_SAVE_DIR = "models"
@@ -43,25 +46,6 @@ def load_and_preprocess_data(filepath):
     return X, y
 
 
-# Define the Artificial Neural Network (Multi-Layer Perceptron)
-class PhishingANN(nn.Module):
-    def __init__(self, input_dim):
-        super(PhishingANN, self).__init__()
-        self.network = nn.Sequential(
-            nn.Linear(input_dim, 64),
-            nn.ReLU(),
-            nn.Dropout(0.3),
-            nn.Linear(64, 32),
-            nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(32, 1)  # Single output for binary classification
-        )
-
-    def forward(self, x):
-        # We use BCEWithLogitsLoss which expects raw logits, so no sigmoid here
-        return self.network(x)
-
-
 def train_and_evaluate_ann():
     # 1. Load and Split Data
     X, y = load_and_preprocess_data(DATA_PATH)
@@ -77,14 +61,18 @@ def train_and_evaluate_ann():
 
     # 3. Create DataLoaders
     train_dataset = TensorDataset(X_train_tensor, y_train_tensor)
-    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
+    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, drop_last=True)
+
+    val_dataset = TensorDataset(X_test_tensor, y_test_tensor)
+    val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False)
 
     # 4. Initialize Model, Loss, and Optimizer
     input_dim = X_train.shape[1]
     model = PhishingANN(input_dim).to(device)
 
     criterion = nn.BCEWithLogitsLoss()  # Combines Sigmoid + Binary Cross Entropy safely
-    optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
+    optimizer = optim.AdamW(model.parameters(), lr=LEARNING_RATE)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=5)
 
     print("\n[*] Starting ANN Training...")
 
@@ -107,8 +95,20 @@ def train_and_evaluate_ann():
 
             epoch_loss += loss.item()
 
+        model.eval()
+        val_loss = 0
+        with torch.no_grad():
+            for batch_X, batch_y in val_loader:
+                batch_X, batch_y = batch_X.to(device), batch_y.to(device)
+                predictions = model(batch_X)
+                v_loss = criterion(predictions, batch_y)
+                val_loss += v_loss.item()
+                
+        avg_val_loss = val_loss / len(val_loader)
+        scheduler.step(avg_val_loss)
+
         if (epoch + 1) % 10 == 0:
-            print(f"    Epoch [{epoch + 1}/{EPOCHS}], Loss: {epoch_loss / len(train_loader):.4f}")
+            print(f"    Epoch [{epoch + 1}/{EPOCHS}], Train Loss: {epoch_loss / len(train_loader):.4f}, Val Loss: {avg_val_loss:.4f}")
 
     # 6. Evaluation
     print("\n[*] Evaluating ANN on Test Data...")

@@ -1,10 +1,10 @@
 import ipaddress
-import re
-import urllib.request
-import socket
 import json
-from urllib.parse import urlparse
+import re
+import socket
+import urllib.request
 from datetime import datetime
+from urllib.parse import urlparse
 
 
 class FeatureExtractor:
@@ -37,6 +37,19 @@ class FeatureExtractor:
                     self.rdap_data = json.loads(response.read().decode('utf-8'))
             except Exception:
                 self.rdap_data = None
+
+        # OPENPHISH LIVE THREAT FEED INTEGRATION
+        self.openphish_feed = []
+        try:
+            # OpenPhish hosts a free, live public raw text feed of zero-day phishing links
+            feed_url = "https://raw.githubusercontent.com/openphish/public_feed/refs/heads/main/feed.txt"
+            req = urllib.request.Request(feed_url, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, timeout=4) as response:
+                # Read the clean list of active phishing URLs into memory
+                raw_data = response.read().decode('utf-8')
+                self.openphish_feed = [line.strip() for line in raw_data.splitlines() if line.strip()]
+        except Exception:
+            self.openphish_feed = []
 
         # Attempt to fetch HTML content for behavioral features
         self.html = None
@@ -165,18 +178,28 @@ class FeatureExtractor:
         return 0  # Average or unknown (Suspicious/Phishing context)
 
     def Google_Index(self):
-        """Feature 28: Verifies if the domain exists inside search index maps."""
-        if not self.domain: return -1
+        """Feature 28: Verifies if the domain exists inside search index maps (via DuckDuckGo)."""
+        if not self.domain:
+            return -1
         try:
-            check_url = f"https://www.google.com/search?q=site:{self.domain}"
-            req = urllib.request.Request(check_url, headers={'User-Agent': 'Mozilla/5.0'})
-            with urllib.request.urlopen(req, timeout=2) as response:
-                res_html = response.read().decode('utf-8', errors='ignore')
-                if "did not match any documents" in res_html:
-                    return -1  # Not indexed
-            return 1
+            from ddgs import DDGS
+            results = list(DDGS().text(f"site:{self.domain}", max_results=3))
+            if results:
+                return 1
+            else:
+                return -1
+        except ImportError:
+            try:
+                from duckduckgo_search import DDGS
+                results = list(DDGS().text(f"site:{self.domain}", max_results=3))
+                if results:
+                    return 1
+                else:
+                    return -1
+            except Exception:
+                return 0
         except Exception:
-            return 0  # Neutral if network blocks search query
+            return 0
 
     def Links_pointing_to_page(self):
         """Feature 29: If unknown rank and unreachable HTML, assume zero backlinks (-1)."""
@@ -185,10 +208,16 @@ class FeatureExtractor:
         return -1 if self.html is None else 0
 
     def Statistical_report(self):
-        """Feature 30: Spam TLD checking."""
+        """Feature 30: Threat Intelligence & Spam TLD check."""
         if not self.url or not self.domain:
             return 1
 
+        # 1. Check for direct URL or domain match in the live OpenPhish ecosystem
+        for malicious_url in self.openphish_feed:
+            if self.url in malicious_url or self.domain in malicious_url:
+                return -1  # Verified malicious inside active OpenPhish feed!
+
+        # 2. Check Spam TLDs
         bad_tlds = ['.xyz', '.top', '.club', '.site', '.tk', '.one', '.vip', '.online', '.pw', '.cc', '.cn']
         if any(self.domain.endswith(tld) for tld in bad_tlds):
             return -1
@@ -218,7 +247,7 @@ class FeatureExtractor:
         return -1 if self.html is None else 1
 
     def Submitting_to_email(self):
-        return -1 if self.html and 'mailto:' in self.html.lower() else 1
+        return -1 if self.html and 'mailto:' in self.html.lower() else (0 if self.html is None else 1)
 
     def Abnormal_URL(self):
         return -1 if not self.parsed_url or not self.parsed_url.hostname or self.parsed_url.hostname not in self.url else 1
@@ -227,22 +256,23 @@ class FeatureExtractor:
         return 1 if self.url.count('//') > 1 else 0
 
     def on_mouseover(self):
-        return -1 if self.html and 'window.status' in self.html.lower() else 1
+        return -1 if self.html and 'window.status' in self.html.lower() else (0 if self.html is None else 1)
 
     def RightClick(self):
-        return -1 if self.html and 'event.button==2' in self.html.lower() else 1
+        return -1 if self.html and 'event.button==2' in self.html.lower() else (0 if self.html is None else 1)
 
     def popUpWidnow(self):
-        return -1 if self.html and 'window.open' in self.html.lower() else 1
+        return -1 if self.html and 'window.open' in self.html.lower() else (0 if self.html is None else 1)
 
     def Iframe(self):
-        return -1 if self.html and '<iframe' in self.html.lower() else 1
+        return -1 if self.html and '<iframe' in self.html.lower() else (0 if self.html is None else 1)
 
     def extract_features(self):
         # If the core domain matches exactly a trusted platform, bypass the model entirely
-        # by returning a perfectly clean web profile vector.
+        # by returning a perfectly clean web profile vector according to the exact UCI schema.
+        # Feature 19 (Redirect) is 0 for legitimate.
         if self.is_whitelisted():
-            return [1] * 30
+            return [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 
         traffic_score = self.web_traffic_and_pagerank()
 
@@ -276,6 +306,6 @@ class FeatureExtractor:
             traffic_score,  # 27 (Heuristic PageRank)
             self.Google_Index(),  # 28 (Google Direct Query)
             self.Links_pointing_to_page(),  # 29 (HTML/Traffic Heuristic)
-            self.Statistical_report()  # 30 (Spam TLD Checking)
+            self.Statistical_report()  # 30 (OpenPhish + Spam TLD Checking)
         ]
         return features

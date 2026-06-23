@@ -1,14 +1,22 @@
-import streamlit as st
-import requests
 import json
-import sys
 import os
+import sys
+
+import requests
+import streamlit as st
+
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv()
+except ImportError:
+    pass
 
 # Ensure the app directory is in the system path for local imports
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # Configuration
-API_URL = "http://127.0.0.1:8000/predict/multimodal"
+API_URL = os.getenv("BACKEND_API_URL", "http://127.0.0.1:8000/predict/multimodal")
 
 st.set_page_config(page_title="Phishing Defense Platform", page_icon="🛡️", layout="wide")
 
@@ -21,8 +29,8 @@ st.divider()
 
 st.subheader("1. Ingestion Layer (Exclusive Select One)")
 ingestion_mode = st.radio(
-    "Select Input Mode", 
-    ["Manual Form", "URL Input", "JSON Payload"], 
+    "Select Input Mode",
+    ["URL Input", "Manual Form", "JSON Payload"],
     horizontal=True,
     help="Exclusive selection for structural feature ingestion."
 )
@@ -30,31 +38,34 @@ ingestion_mode = st.radio(
 # Helper dictionary to map user-friendly text to model integer values
 opt_map = {"Legitimate": 1, "Suspicious": 0, "Phishing": -1}
 
+
 def create_selectbox(label, options=["Legitimate", "Phishing"]):
     return st.selectbox(label, options=options)
+
 
 current_features = None
 trigger_analysis = False
 raw_url = ""
 
 if ingestion_mode == "URL Input":
-    st.markdown("**Automated Feature Extraction**")
+    st.markdown("**Automated Feature Extraction (Asynchronous)**")
     raw_url = st.text_input("Raw URL String", placeholder="https://example.com")
     if st.button("🚀 Extract & Analyze", use_container_width=True):
         if raw_url:
-            from data_transformation import FeatureExtractor
-            extractor = FeatureExtractor(raw_url)
-            current_features = extractor.extract_features()
+            # Backend handles the extraction asynchronously to avoid UI freezing
+            current_features = None
             trigger_analysis = True
         else:
             st.error("Please enter a valid URL.")
 
 elif ingestion_mode == "Manual Form":
     st.markdown("**Manual Web Profile Vectors**")
-    raw_url = st.text_input("Catch-All Raw URL String (For Threat Intel & Linguistic Evaluation)", placeholder="Optional raw URL...")
+    raw_url = st.text_input("Catch-All Raw URL String (For Threat Intel & Linguistic Evaluation)",
+                            placeholder="Optional raw URL...")
     with st.form("feature_input_form"):
-        tab1, tab2, tab3 = st.tabs(["🌐 Address Bar & URL Features", "💻 HTML & JavaScript Features", "🌍 Domain & External Features"])
-        
+        tab1, tab2, tab3 = st.tabs(
+            ["🌐 Address Bar & URL Features", "💻 HTML & JavaScript Features", "🌍 Domain & External Features"])
+
         with tab1:
             st.markdown("**URL Structural Anomalies**")
             col1, col2, col3 = st.columns(3)
@@ -85,7 +96,7 @@ elif ingestion_mode == "Manual Form":
             with col2:
                 f17 = create_selectbox("Submitting to Email (Submitting_to_email)")
                 f18 = create_selectbox("Abnormal URL (Abnormal_URL)")
-                f19 = create_selectbox("Redirects (Redirect)", ["Legitimate", "Phishing"]) # 0, 1 in original
+                f19 = create_selectbox("Redirects (Redirect)", ["Legitimate", "Phishing"])  # 0, 1 in original
                 f20 = create_selectbox("On Mouseover Event (on_mouseover)")
             with col3:
                 f21 = create_selectbox("Right Click Disabled (RightClick)")
@@ -103,11 +114,12 @@ elif ingestion_mode == "Manual Form":
                 f27 = create_selectbox("Page Rank (Page_Rank)")
             with col3:
                 f28 = create_selectbox("Google Index (Google_Index)")
-                f29 = create_selectbox("Links Pointing to Page (Links_pointing_to_page)", ["Legitimate", "Suspicious", "Phishing"])
+                f29 = create_selectbox("Links Pointing to Page (Links_pointing_to_page)",
+                                       ["Legitimate", "Suspicious", "Phishing"])
                 f30 = create_selectbox("Statistical Report (Statistical_report)")
-                
+
         analyze_btn = st.form_submit_button("🚀 Run Threat Analysis", use_container_width=True)
-        
+
         if analyze_btn:
             redirect_val = 0 if f19 == "Legitimate" else 1
 
@@ -122,7 +134,8 @@ elif ingestion_mode == "Manual Form":
 
 elif ingestion_mode == "JSON Payload":
     st.markdown("**API JSON Payload**")
-    raw_url = st.text_input("Catch-All Raw URL String (For Threat Intel & Linguistic Evaluation)", placeholder="Optional raw URL...")
+    raw_url = st.text_input("Catch-All Raw URL String (For Threat Intel & Linguistic Evaluation)",
+                            placeholder="Optional raw URL...")
     json_input = st.text_area("Tabular Features Array (Length 30)", placeholder="[1, -1, 0, 1, 1, ...]")
     if st.button("🚀 Run Threat Analysis", use_container_width=True):
         try:
@@ -140,101 +153,121 @@ st.divider()
 st.subheader("2. Multi-Modal Sensors (Optional)")
 col1, col2 = st.columns(2)
 with col1:
-    enable_nlp = st.checkbox("Enable Linguistic Evaluation (NLP Transformer)")
+    enable_nlp = st.checkbox("Enable Linguistic Evaluation (NLP Transformer)", value=True)
     if enable_nlp:
-        st.info("Linguistic Sensor logic currently bypassed (Pending `distilroberta-base` integration).")
+        st.info("NLP Engine is active (Depends on local Transformers availability).")
 
 with col2:
     uploaded_file = st.file_uploader("Upload Webpage Screenshot (CNN Vision Engine)", type=["png", "jpg", "jpeg"])
     if uploaded_file is not None:
-        st.info("Visual Sensor logic currently bypassed (Pending `EfficientNet-B0` integration).")
+        st.info("Visual CNN Engine is active (Depends on local Torchvision availability).")
 
-if trigger_analysis and current_features is not None:
-    with st.spinner("Engaging Neural Networks, ML Trees, and Threat Feeds..."):
+if trigger_analysis:
+    with st.spinner("Engaging Neural Networks, ML Trees, and Threat Feeds asynchronously..."):
         try:
-            # Send data to FastAPI Backend
-            payload_data = {"features": json.dumps(current_features)}
+            payload_data = {}
+            if current_features is not None:
+                payload_data["features"] = json.dumps(current_features)
+
             payload_files = {}
 
             if raw_url:
                 payload_data["url"] = raw_url
-            
+
             if uploaded_file is not None:
                 payload_files["image"] = (uploaded_file.name, uploaded_file.getvalue(), uploaded_file.type)
 
+            # Send data to FastAPI Backend
             response = requests.post(API_URL, data=payload_data, files=payload_files if payload_files else None)
-            
+
             if response.status_code == 200:
                 results = response.json()
-                
+
                 st.divider()
-                st.subheader("3. Consensus Layer Intelligence Report")
-                
-                # Display Metrics
-                metric_col1, metric_col2, metric_col3, metric_col4 = st.columns(4)
-                
+                st.subheader("3. Production Intelligence Report")
+
+                metric_col1, metric_col2, metric_col3 = st.columns(3)
+
                 threat_pred = results.get('threat_intelligence', {}).get('prediction', 'Legitimate')
                 threat_source = results.get('threat_intelligence', {}).get('source', 'Clean')
 
                 ml_pred = results['ml_engine']['prediction']
                 ml_risk = results['ml_engine']['risk_score'] * 100
-                
-                ann_pred = results['ann_engine']['prediction']
-                ann_risk = results['ann_engine']['risk_score'] * 100
-                
+
                 cons_pred = results['consensus']['final_decision']
                 cons_risk = results['consensus']['weighted_risk'] * 100
 
                 nlp_pred = results['nlp_engine']['prediction']
                 vision_pred = results['vision_engine']['prediction']
-                
-                # Colors
+                ann_pred = results['ann_engine']['prediction']
+                ann_risk = results['ann_engine']['risk_score'] * 100
+
+
                 def get_icon(pred):
                     if "Phishing" in pred: return "🔴"
                     if "Suspicious" in pred: return "🟠"
                     if pred == "Legitimate": return "🟢"
                     return "⚪"
 
+
                 threat_color = get_icon(threat_pred)
                 ml_color = get_icon(ml_pred)
-                ann_color = get_icon(ann_pred)
                 cons_color = get_icon(cons_pred)
+                ann_color = get_icon(ann_pred)
 
                 with metric_col1:
-                    st.metric(label=f"Threat Feed {threat_color}", value=threat_pred, delta=threat_source, delta_color="off")
-                
-                with metric_col2:
-                    st.metric(label=f"XGBoost {ml_color}", value=ml_pred, delta=f"Risk: {ml_risk:.1f}%", delta_color="inverse")
-                    
-                with metric_col3:
-                    st.metric(label=f"PyTorch ANN {ann_color}", value=ann_pred, delta=f"Risk: {ann_risk:.1f}%", delta_color="inverse")
-                    
-                with metric_col4:
-                    st.metric(label=f"Consensus {cons_color}", value=cons_pred, delta=f"Risk: {cons_risk:.1f}%", delta_color="inverse")
+                    st.metric(label=f"Live Threat Feed {threat_color}", value=threat_pred, delta=threat_source,
+                              delta_color="off")
 
-                # Optional NLP and Vision rows below
-                if nlp_pred != "Bypassed" or vision_pred != "Bypassed":
-                    st.markdown("**Optional Sensor Diagnostics:**")
-                    opt_col1, opt_col2 = st.columns(2)
-                    with opt_col1:
-                        if nlp_pred != "Bypassed":
-                            nlp_risk = results['nlp_engine']['risk_score'] * 100
-                            st.metric(label=f"NLP Engine {get_icon(nlp_pred)}", value=nlp_pred, delta=f"Risk: {nlp_risk:.1f}%", delta_color="inverse")
-                    with opt_col2:
-                        if vision_pred != "Bypassed":
-                            vision_risk = results['vision_engine']['risk_score'] * 100
-                            st.metric(label=f"Vision CNN {get_icon(vision_pred)}", value=vision_pred, delta=f"Risk: {vision_risk:.1f}%", delta_color="inverse")
-                
+                with metric_col2:
+                    st.metric(label=f"XGBoost Engine {ml_color}", value=ml_pred, delta=f"Risk: {ml_risk:.1f}%",
+                              delta_color="inverse")
+
+                with metric_col3:
+                    st.metric(label=f"Production Consensus {cons_color}", value=cons_pred,
+                              delta=f"Risk: {cons_risk:.1f}%", delta_color="inverse")
+
                 st.divider()
                 if cons_pred == "Phishing":
-                    st.error(f"**GLOBAL THREAT ALERT:** High probability malicious target. Priority Risk: {cons_risk:.1f}%")
+                    st.error(
+                        f"**GLOBAL THREAT ALERT:** High probability malicious target. Logistic Calibrated Risk: {cons_risk:.1f}%")
                 elif cons_pred == "Suspicious":
-                    st.warning(f"**SUSPICIOUS ACTIVITY FLAGGED:** Structural anomalies detected. Verification recommended. Priority Risk: {cons_risk:.1f}%")
+                    st.warning(
+                        f"**SUSPICIOUS ACTIVITY FLAGGED:** Structural anomalies detected. Verification recommended. Logistic Calibrated Risk: {cons_risk:.1f}%")
                 else:
-                    st.success(f"**TARGET SECURE:** URL satisfies core structural integrity benchmarks. Priority Risk: {cons_risk:.1f}%")
+                    st.success(
+                        f"**TARGET SECURE:** URL satisfies core structural integrity benchmarks. Logistic Calibrated Risk: {cons_risk:.1f}%")
+
+                st.divider()
+                st.subheader("4. Experimental AI Lab (Secondary Opinions)")
+                st.info(
+                    "The custom PyTorch ANN is included as an experimental shadow model to demonstrate custom deep learning framework implementation, while XGBoost rules the tabular production environment.")
+
+                exp_col1, exp_col2, exp_col3 = st.columns(3)
+
+                with exp_col1:
+                    st.metric(label=f"PyTorch ANN {ann_color}", value=ann_pred, delta=f"Risk: {ann_risk:.1f}%",
+                              delta_color="inverse")
+
+                with exp_col2:
+                    if nlp_pred != "Bypassed":
+                        nlp_risk = results['nlp_engine']['risk_score'] * 100
+                        st.metric(label=f"NLP Engine {get_icon(nlp_pred)}", value=nlp_pred,
+                                  delta=f"Risk: {nlp_risk:.1f}%", delta_color="inverse")
+                    else:
+                        st.metric(label="NLP Engine ⚪", value="Bypassed", delta="Inactive", delta_color="off")
+
+                with exp_col3:
+                    if vision_pred != "Bypassed":
+                        vision_risk = results['vision_engine']['risk_score'] * 100
+                        st.metric(label=f"Vision CNN {get_icon(vision_pred)}", value=vision_pred,
+                                  delta=f"Risk: {vision_risk:.1f}%", delta_color="inverse")
+                    else:
+                        st.metric(label="Vision CNN ⚪", value="Bypassed", delta="Inactive", delta_color="off")
 
             else:
-                st.error(f"Backend Error {response.status_code}: {response.text}")
-                
+                st.error(f"Backend Error {response.status_code}: {response.json().get('detail', response.text)}")
+
         except requests.exceptions.ConnectionError:
-            st.error("🚨 Cannot connect to Backend Engine! Please make sure you ran 'uvicorn app.main:app --reload' in a separate terminal.")
+            st.error(
+                "🚨 Cannot connect to Backend Engine! Please make sure you ran 'uvicorn app.main:app --reload' in a separate terminal.")
