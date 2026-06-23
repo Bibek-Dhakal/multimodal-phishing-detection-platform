@@ -1,8 +1,14 @@
-import requests
 import streamlit as st
+import requests
+import json
+import sys
+import os
+
+# Ensure the app directory is in the system path for local imports
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # Configuration
-API_URL = "http://127.0.0.1:8000/predict/tabular"
+API_URL = "http://127.0.0.1:8000/predict/multimodal"
 
 st.set_page_config(page_title="Phishing Defense Platform", page_icon="🛡️", layout="wide")
 
@@ -13,90 +19,222 @@ This platform uses advanced **Machine Learning (XGBoost)** and **Deep Learning (
 
 st.divider()
 
-st.subheader("Tabular Analysis Engine (Structured Features)")
+st.subheader("1. Ingestion Layer (Exclusive Select One)")
+ingestion_mode = st.radio(
+    "Select Input Mode", 
+    ["Manual Form", "URL Input", "JSON Payload"], 
+    horizontal=True,
+    help="Exclusive selection for structural feature ingestion."
+)
 
-# For demonstration, we use two sample arrays pulled directly from the ARFF dataset
-# Sample 1: A known phishing website
-phishing_sample = [-1, 1, 1, 1, -1, -1, -1, -1, -1, 1, 1, -1, 1, -1, 1, -1, -1, -1, 0, 1, 1, 1, 1, -1, -1, -1, -1, 1, 1,
-                   -1]
-# Sample 2: A known legitimate website
-legitimate_sample = [1, 0, -1, 1, 1, -1, 1, 1, -1, 1, 1, 1, 1, 0, 0, -1, 1, 1, 0, -1, 1, -1, 1, -1, -1, 0, -1, 1, 1, 1]
+# Helper dictionary to map user-friendly text to model integer values
+opt_map = {"Legitimate": 1, "Suspicious": 0, "Phishing": -1}
 
-col1, col2 = st.columns([2, 1])
+def create_selectbox(label, options=["Legitimate", "Phishing"]):
+    return st.selectbox(label, options=options)
 
+current_features = None
+trigger_analysis = False
+raw_url = ""
+
+if ingestion_mode == "URL Input":
+    st.markdown("**Automated Feature Extraction**")
+    raw_url = st.text_input("Raw URL String", placeholder="https://example.com")
+    if st.button("🚀 Extract & Analyze", use_container_width=True):
+        if raw_url:
+            from data_transformation import FeatureExtractor
+            extractor = FeatureExtractor(raw_url)
+            current_features = extractor.extract_features()
+            trigger_analysis = True
+        else:
+            st.error("Please enter a valid URL.")
+
+elif ingestion_mode == "Manual Form":
+    st.markdown("**Manual Web Profile Vectors**")
+    raw_url = st.text_input("Catch-All Raw URL String (For Threat Intel & Linguistic Evaluation)", placeholder="Optional raw URL...")
+    with st.form("feature_input_form"):
+        tab1, tab2, tab3 = st.tabs(["🌐 Address Bar & URL Features", "💻 HTML & JavaScript Features", "🌍 Domain & External Features"])
+        
+        with tab1:
+            st.markdown("**URL Structural Anomalies**")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                f1 = create_selectbox("IP Address in URL (having_IP_Address)")
+                f2 = create_selectbox("URL Length (URL_Length)", ["Legitimate", "Suspicious", "Phishing"])
+                f3 = create_selectbox("Shortening Service (Shortining_Service)")
+                f4 = create_selectbox("@ Symbol (having_At_Symbol)")
+            with col2:
+                f5 = create_selectbox("Double Slash Redirect (double_slash_redirecting)")
+                f6 = create_selectbox("Prefix/Suffix using '-' (Prefix_Suffix)")
+                f7 = create_selectbox("Sub Domains (having_Sub_Domain)", ["Legitimate", "Suspicious", "Phishing"])
+                f8 = create_selectbox("SSL Final State (SSLfinal_State)", ["Legitimate", "Suspicious", "Phishing"])
+            with col3:
+                f9 = create_selectbox("Domain Registration Length (Domain_registeration_length)")
+                f10 = create_selectbox("External Favicon (Favicon)")
+                f11 = create_selectbox("Non-Standard Port (port)")
+                f12 = create_selectbox("HTTPS Token in URL (HTTPS_token)")
+
+        with tab2:
+            st.markdown("**Webpage Behavior & Scripting**")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                f13 = create_selectbox("Request URL (Request_URL)")
+                f14 = create_selectbox("URL of Anchor (URL_of_Anchor)", ["Legitimate", "Suspicious", "Phishing"])
+                f15 = create_selectbox("Links in Tags (Links_in_tags)", ["Legitimate", "Suspicious", "Phishing"])
+                f16 = create_selectbox("Server Form Handler (SFH)", ["Legitimate", "Suspicious", "Phishing"])
+            with col2:
+                f17 = create_selectbox("Submitting to Email (Submitting_to_email)")
+                f18 = create_selectbox("Abnormal URL (Abnormal_URL)")
+                f19 = create_selectbox("Redirects (Redirect)", ["Legitimate", "Phishing"]) # 0, 1 in original
+                f20 = create_selectbox("On Mouseover Event (on_mouseover)")
+            with col3:
+                f21 = create_selectbox("Right Click Disabled (RightClick)")
+                f22 = create_selectbox("PopUp Window (popUpWidnow)")
+                f23 = create_selectbox("IFrame Hidden (Iframe)")
+
+        with tab3:
+            st.markdown("**External Context & Ranking**")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                f24 = create_selectbox("Age of Domain (age_of_domain)")
+                f25 = create_selectbox("DNS Record (DNSRecord)")
+            with col2:
+                f26 = create_selectbox("Web Traffic (web_traffic)", ["Legitimate", "Suspicious", "Phishing"])
+                f27 = create_selectbox("Page Rank (Page_Rank)")
+            with col3:
+                f28 = create_selectbox("Google Index (Google_Index)")
+                f29 = create_selectbox("Links Pointing to Page (Links_pointing_to_page)", ["Legitimate", "Suspicious", "Phishing"])
+                f30 = create_selectbox("Statistical Report (Statistical_report)")
+                
+        analyze_btn = st.form_submit_button("🚀 Run Threat Analysis", use_container_width=True)
+        
+        if analyze_btn:
+            redirect_val = 0 if f19 == "Legitimate" else 1
+
+            current_features = [
+                opt_map[f1], opt_map[f2], opt_map[f3], opt_map[f4], opt_map[f5], opt_map[f6],
+                opt_map[f7], opt_map[f8], opt_map[f9], opt_map[f10], opt_map[f11], opt_map[f12],
+                opt_map[f13], opt_map[f14], opt_map[f15], opt_map[f16], opt_map[f17], opt_map[f18],
+                redirect_val, opt_map[f20], opt_map[f21], opt_map[f22], opt_map[f23], opt_map[f24],
+                opt_map[f25], opt_map[f26], opt_map[f27], opt_map[f28], opt_map[f29], opt_map[f30]
+            ]
+            trigger_analysis = True
+
+elif ingestion_mode == "JSON Payload":
+    st.markdown("**API JSON Payload**")
+    raw_url = st.text_input("Catch-All Raw URL String (For Threat Intel & Linguistic Evaluation)", placeholder="Optional raw URL...")
+    json_input = st.text_area("Tabular Features Array (Length 30)", placeholder="[1, -1, 0, 1, 1, ...]")
+    if st.button("🚀 Run Threat Analysis", use_container_width=True):
+        try:
+            parsed = json.loads(json_input)
+            if isinstance(parsed, list) and len(parsed) == 30:
+                current_features = parsed
+                trigger_analysis = True
+            else:
+                st.error("Invalid payload: Must be a JSON list of exactly 30 integers.")
+        except Exception as e:
+            st.error(f"JSON Parse Error: {str(e)}")
+
+st.divider()
+
+st.subheader("2. Multi-Modal Sensors (Optional)")
+col1, col2 = st.columns(2)
 with col1:
-    sample_choice = st.selectbox(
-        "Select a Web Profile to Analyze:",
-        [
-            "Target A (Suspicious Activity Detected)",
-            "Target B (Standard Corporate Website)"
-        ]
-    )
-
-    if sample_choice == "Target A (Suspicious Activity Detected)":
-        current_features = phishing_sample
-        st.info("Loaded features typically indicating hidden iframes, external favicons, and abnormal URL requests.")
-    else:
-        current_features = legitimate_sample
-        st.success("Loaded features typically indicating valid SSL certificates, standard ports, and trusted domains.")
+    enable_nlp = st.checkbox("Enable Linguistic Evaluation (NLP Transformer)")
+    if enable_nlp:
+        st.info("Linguistic Sensor logic currently bypassed (Pending `distilroberta-base` integration).")
 
 with col2:
-    st.write("")
-    st.write("")
-    analyze_btn = st.button("🚀 Run Threat Analysis", use_container_width=True)
+    uploaded_file = st.file_uploader("Upload Webpage Screenshot (CNN Vision Engine)", type=["png", "jpg", "jpeg"])
+    if uploaded_file is not None:
+        st.info("Visual Sensor logic currently bypassed (Pending `EfficientNet-B0` integration).")
 
-if analyze_btn:
-    with st.spinner("Engaging Neural Networks and ML Trees..."):
+if trigger_analysis and current_features is not None:
+    with st.spinner("Engaging Neural Networks, ML Trees, and Threat Feeds..."):
         try:
             # Send data to FastAPI Backend
-            payload = {"features": current_features}
-            response = requests.post(API_URL, json=payload)
+            payload_data = {"features": json.dumps(current_features)}
+            payload_files = {}
 
+            if raw_url:
+                payload_data["url"] = raw_url
+            
+            if uploaded_file is not None:
+                payload_files["image"] = (uploaded_file.name, uploaded_file.getvalue(), uploaded_file.type)
+
+            response = requests.post(API_URL, data=payload_data, files=payload_files if payload_files else None)
+            
             if response.status_code == 200:
                 results = response.json()
-
+                
                 st.divider()
-                st.subheader("Intelligence Report")
-
+                st.subheader("3. Consensus Layer Intelligence Report")
+                
                 # Display Metrics
-                metric_col1, metric_col2, metric_col3 = st.columns(3)
+                metric_col1, metric_col2, metric_col3, metric_col4 = st.columns(4)
+                
+                threat_pred = results.get('threat_intelligence', {}).get('prediction', 'Legitimate')
+                threat_source = results.get('threat_intelligence', {}).get('source', 'Clean')
 
                 ml_pred = results['ml_engine']['prediction']
                 ml_risk = results['ml_engine']['risk_score'] * 100
-
+                
                 ann_pred = results['ann_engine']['prediction']
                 ann_risk = results['ann_engine']['risk_score'] * 100
-
+                
                 cons_pred = results['consensus']['final_decision']
-                cons_risk = results['consensus']['average_risk'] * 100
+                cons_risk = results['consensus']['weighted_risk'] * 100
 
+                nlp_pred = results['nlp_engine']['prediction']
+                vision_pred = results['vision_engine']['prediction']
+                
                 # Colors
-                ml_color = "🔴" if ml_pred == "Phishing" else "🟢"
-                ann_color = "🔴" if ann_pred == "Phishing" else "🟢"
-                cons_color = "🔴" if cons_pred == "Phishing" else "🟢"
+                def get_icon(pred):
+                    if "Phishing" in pred: return "🔴"
+                    if "Suspicious" in pred: return "🟠"
+                    if pred == "Legitimate": return "🟢"
+                    return "⚪"
+
+                threat_color = get_icon(threat_pred)
+                ml_color = get_icon(ml_pred)
+                ann_color = get_icon(ann_pred)
+                cons_color = get_icon(cons_pred)
 
                 with metric_col1:
-                    st.metric(label=f"XGBoost Engine {ml_color}", value=ml_pred, delta=f"Risk: {ml_risk:.1f}%",
-                              delta_color="inverse")
-
+                    st.metric(label=f"Threat Feed {threat_color}", value=threat_pred, delta=threat_source, delta_color="off")
+                
                 with metric_col2:
-                    st.metric(label=f"PyTorch ANN {ann_color}", value=ann_pred, delta=f"Risk: {ann_risk:.1f}%",
-                              delta_color="inverse")
-
+                    st.metric(label=f"XGBoost {ml_color}", value=ml_pred, delta=f"Risk: {ml_risk:.1f}%", delta_color="inverse")
+                    
                 with metric_col3:
-                    st.metric(label=f"System Consensus {cons_color}", value=cons_pred,
-                              delta=f"Overall Risk: {cons_risk:.1f}%", delta_color="inverse")
+                    st.metric(label=f"PyTorch ANN {ann_color}", value=ann_pred, delta=f"Risk: {ann_risk:.1f}%", delta_color="inverse")
+                    
+                with metric_col4:
+                    st.metric(label=f"Consensus {cons_color}", value=cons_pred, delta=f"Risk: {cons_risk:.1f}%", delta_color="inverse")
 
+                # Optional NLP and Vision rows below
+                if nlp_pred != "Bypassed" or vision_pred != "Bypassed":
+                    st.markdown("**Optional Sensor Diagnostics:**")
+                    opt_col1, opt_col2 = st.columns(2)
+                    with opt_col1:
+                        if nlp_pred != "Bypassed":
+                            nlp_risk = results['nlp_engine']['risk_score'] * 100
+                            st.metric(label=f"NLP Engine {get_icon(nlp_pred)}", value=nlp_pred, delta=f"Risk: {nlp_risk:.1f}%", delta_color="inverse")
+                    with opt_col2:
+                        if vision_pred != "Bypassed":
+                            vision_risk = results['vision_engine']['risk_score'] * 100
+                            st.metric(label=f"Vision CNN {get_icon(vision_pred)}", value=vision_pred, delta=f"Risk: {vision_risk:.1f}%", delta_color="inverse")
+                
+                st.divider()
                 if cons_pred == "Phishing":
-                    st.error(
-                        f"**WARNING:** The Consensus Engine has flagged this target as malicious. Probability of spoofing: {cons_risk:.1f}%")
+                    st.error(f"**GLOBAL THREAT ALERT:** High probability malicious target. Priority Risk: {cons_risk:.1f}%")
+                elif cons_pred == "Suspicious":
+                    st.warning(f"**SUSPICIOUS ACTIVITY FLAGGED:** Structural anomalies detected. Verification recommended. Priority Risk: {cons_risk:.1f}%")
                 else:
-                    st.success(
-                        f"**SAFE:** The target exhibits structural integrity. Probability of spoofing: {cons_risk:.1f}%")
+                    st.success(f"**TARGET SECURE:** URL satisfies core structural integrity benchmarks. Priority Risk: {cons_risk:.1f}%")
 
             else:
                 st.error(f"Backend Error {response.status_code}: {response.text}")
-
+                
         except requests.exceptions.ConnectionError:
-            st.error(
-                "🚨 Cannot connect to Backend Engine! Please make sure you ran 'uvicorn app.main:app --reload' in a separate terminal.")
+            st.error("🚨 Cannot connect to Backend Engine! Please make sure you ran 'uvicorn app.main:app --reload' in a separate terminal.")

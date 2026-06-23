@@ -12,4 +12,5 @@ fastapi
 uvicorn
 streamlit
 jupyter
-
+python-whois
+python-multipart

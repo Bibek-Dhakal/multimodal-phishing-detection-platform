@@ -8,13 +8,19 @@
 ## Project Overview
 
 Phishing attacks remain one of the most pervasive cyber threats, causing billions of dollars in losses annually. This
-project is a **Phishing Detection System** that automatically evaluates suspicious URLs using structural and behavioral
-indicators extracted from website addresses.
+project is a **Phishing Detection System** that automatically evaluates suspicious URLs using a production-grade *
+*Layered Hybrid Defense Architecture**.
 
-Currently deployed as the core **Tabular Engine**, the system benchmarks 8 traditional Machine Learning algorithms (with
-**XGBoost** achieving top accuracy) and a custom PyTorch **Artificial Neural Network (ANN)**. Both engines run
-concurrently via a FastAPI backend, utilizing a Consensus Scoring Layer to aggregate predictions, which are displayed
-through a Streamlit dashboard.
+Instead of relying solely on isolated machine learning models, this platform combines:
+
+1. **Live Threat Intelligence:** Integrates OpenPhish zero-day feeds via HTTPS/RDAP.
+2. **Structural ML/DL Engines:** Benchmarks 8 traditional Machine Learning algorithms (with **XGBoost** achieving top
+   accuracy) and a custom PyTorch **Artificial Neural Network (ANN)**.
+3. **Continuous Heuristics:** Uses Shannon Entropy and mathematical gradient penalties to prevent false positives and
+   catch zero-day obfuscation.
+
+Both engines run concurrently via a FastAPI backend, utilizing a Weighted Priority Matrix to aggregate predictions and
+completely eliminate "alarm fatigue," displaying results through a Streamlit dashboard.
 
 ---
 
@@ -29,12 +35,15 @@ For a deep dive into the methodology and technical details, please refer to the 
 
 ## Architecture
 
-1. **Machine Learning Engine**: Benchmarks Logistic Regression, Naive Bayes, KNN, SVM, Decision Tree, Random Forest,
+1. **Threat Intelligence Layer**: Live TTL caching of the OpenPhish database and local Apex domain whitelisting.
+2. **Machine Learning Engine**: Benchmarks Logistic Regression, Naive Bayes, KNN, SVM, Decision Tree, Random Forest,
    AdaBoost, and XGBoost.
-2. **Deep Learning Engine**: A Dense Multi-Layer Perceptron (MLP) built in PyTorch to evaluate complex non-linear
+3. **Deep Learning Engine**: A Dense Multi-Layer Perceptron (MLP) built in PyTorch to evaluate complex non-linear
    patterns in structured features.
-3. **Inference Gateway**: FastAPI backend (`app/main.py`) that loads models into memory and serves predictions.
-4. **User Interface**: Streamlit dashboard (`app/dashboard.py`) for security analysts to test web profile vectors.
+4. **Inference Gateway**: FastAPI backend (`app/main.py`) that loads models into memory, applies Probabilistic
+   Thresholding (0.85), and serves consensus predictions.
+5. **User Interface**: Streamlit dashboard (`app/dashboard.py`) for security analysts to test web profile vectors and
+   raw URLs natively.
 
 ---
 
@@ -60,7 +69,7 @@ source venv/bin/activate
 Install dependencies:
 
 ```bash
-pip install pandas numpy matplotlib seaborn scikit-learn xgboost torch torchvision torchaudio scipy fastapi uvicorn streamlit
+pip install pandas numpy matplotlib seaborn scikit-learn xgboost torch torchvision torchaudio scipy fastapi uvicorn streamlit python-whois python-multipart
 ```
 
 ### 3. Data Setup
@@ -94,7 +103,7 @@ The application requires two terminals. Ensure your virtual environment is activ
 uvicorn app.main:app --reload
 ```
 
-*(The API will be available at http://127.0.0.1:8000)*
+*(The API will be available at http://127.0.0.1:8000. It will automatically download the OpenPhish feed on boot).*
 
 **Terminal 2: Start the Streamlit Dashboard**
 

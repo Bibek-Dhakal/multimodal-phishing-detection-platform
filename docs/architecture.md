@@ -8,35 +8,41 @@ easy updates, and fault tolerance.
 
 ```mermaid
 graph TD
-    subgraph Frontend
-        UI[Streamlit Dashboard<br/>app/dashboard.py]
+    subgraph Frontend [Streamlit Dashboard]
+        UI[app/dashboard.py]
     end
 
     subgraph Backend [FastAPI Server]
-        API[API Gateway<br/>/predict/tabular]
-        Consensus[Consensus Scoring Layer]
+        API[API Gateway: /predict/multimodal]
+        Feed[OpenPhish RAM Cache 1-Hr TTL]
+        Consensus[Weighted Priority Matrix]
+        Heuristics[Continuous Math & Entropy]
     end
 
     subgraph Models [Loaded in Memory]
-        ML[XGBoost ML Model<br/>.pkl]
-        DL[PyTorch ANN Model<br/>.pt]
+        ML[XGBoost ML Model]
+        DL[PyTorch ANN Model]
     end
 
-    UI -- "Sends web profile features (JSON)" --> API
-    API --> ML
-    API --> DL
-    ML -- "Risk Probability (0-1)" --> Consensus
-    DL -- "Risk Probability (0-1)" --> Consensus
-    Consensus -- "Averaged Risk & Final Decision" --> API
-    API -- "Returns Intelligence Report" --> UI
+    UI -- "Raw URL / JSON / Image" --> API
+    API --> Feed
+    Feed -- "If Match: Bypass to Alert" --> Consensus
+    API -- "Extracts 30 Features (RDAP/HTML)" --> ML & DL & Heuristics
+    ML -- "Probabilistic Risk (0-1)" --> Consensus
+    DL -- "Probabilistic Risk (0-1)" --> Consensus
+    Heuristics -- "Length/Entropy Penalty" --> Consensus
+    Consensus -- "Thresholded Alert Tier" --> UI
 ```
 
 ## 1. Data Processing Pipeline
 
-* **Ingestion**: Tabular data is ingested from `.arff` files.
-* **Cleaning**: Byte-strings are decoded into integers. Target variables are mapped to standard binary classification
-  formats (`1` for Phishing, `0` for Legitimate).
-* **Splitting**: Data is stratified and split into 80% Training and 20% Testing sets.
+* **Automated Feature Extraction (`data_transformation.py`)**: Uses Python native libraries (`urllib`, `socket`) to
+  fetch HTML and perform API-less RDAP lookups over HTTPS to bypass Port 43 firewalls. Converts live URLs into the
+  30-feature UCI array.
+* **Continuous Heuristics**: Calculates Shannon Entropy and string length to capture zero-day obfuscation outside of
+  rigid categorical constraints.
+* **Local Whitelisting**: Apex domain verification (e.g., `google.com`) to prevent false positives on enterprise
+  tracking URLs.
 
 ## 2. Model Training Layers
 
@@ -62,16 +68,17 @@ A custom PyTorch Artificial Neural Network is trained as a parallel benchmark:
 
 ### FastAPI Backend (`app/main.py`)
 
-* **Startup Lifecycle**: On server boot, both the XGBoost `.pkl` and the PyTorch `.pt` models are loaded directly into
-  RAM.
-* **Consensus Endpoint**: `POST /predict/tabular` receives an array of 30 structural integers. It passes the array
-  simultaneously to both engines, retrieves their risk probabilities, and averages them to determine the final system
-  consensus.
+* **Layer 1 Threat Intelligence**: On boot, downloads the OpenPhish global threat feed into RAM with a 1-hour TTL
+  background refresh, dodging network latency per-request.
+* **Probabilistic Thresholding**: Discards traditional 0.50 binary bounds. It requires a >0.85 threshold to assert a
+  positive ML/ANN hit, heavily prioritizing precision to reduce False Positives.
+* **Weighted Priority Matrix**: Averages the XGBoost (60% weight) and ANN (40% weight) along with Continuous Math
+  penalties to issue a tiered consensus (`Secure`, `Suspicious`, `Phishing`).
 
 ### Streamlit Frontend (`app/dashboard.py`)
 
-* Provides an interactive GUI for end-users.
-* Abstracts the underlying data arrays into easy-to-test "Profiles".
-* Sends REST HTTP requests to the FastAPI backend and visually formats the returned risk percentages and predictions.
+* Provides an interactive GUI for end-users, supporting Automated URL extraction, Manual Form profiling, and API JSON
+  payload simulation.
+* Abstracts the underlying backend logic into visually responsive, multi-metric intelligence reports.
 
 ---
