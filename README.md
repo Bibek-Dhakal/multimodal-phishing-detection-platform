@@ -1,6 +1,6 @@
 # Multi-Modal Phishing Intelligence & Defense Platform
 
-![Python](https://img.shields.io/badge/Python-3.11%2B-blue)
+![Python](https://img.shields.io/badge/Python-3.12%2B-blue)
 ![PyTorch](https://img.shields.io/badge/PyTorch-Deep%20Learning-ee4c2c)
 ![FastAPI](https://img.shields.io/badge/FastAPI-Backend-009688)
 ![Streamlit](https://img.shields.io/badge/Streamlit-UI-FF4B4B)
@@ -8,21 +8,21 @@
 
 ## Project Overview
 
-Phishing attacks remain one of the most pervasive cyber threats, causing billions of dollars in losses annually. This
-project is a **Phishing Detection System** that automatically evaluates suspicious URLs using a production-grade *
-*Layered Hybrid Defense Architecture**.
+Phishing attacks remain one of the most pervasive cyber threats. This project is a **Phishing Detection System** that
+automatically evaluates suspicious URLs using a production-grade **Layered Multi-Modal Architecture**.
 
-Instead of relying solely on isolated machine learning models, this platform combines:
+Instead of relying solely on isolated machine learning models, this platform utilizes a **Soft-Voting Fusion
+Aggregator** that combines:
 
-1. **Live Threat Intelligence:** Integrates OpenPhish zero-day feeds via HTTPS/RDAP.
-2. **Structural ML/DL Engines:** Benchmarks 8 traditional Machine Learning algorithms. **XGBoost** achieves top accuracy
-   and serves as the primary production engine, while a custom PyTorch **Artificial Neural Network (ANN)** acts as a
-   secondary experimental shadow model.
-3. **Continuous Heuristics:** Uses Shannon Entropy, DuckDuckGo SERP indexing, and Fuzzy String Matching (Levenshtein
-   Distance) to prevent false positives and catch zero-day typosquatting / brand spoofing.
+1. **Tabular Structural Intelligence (40% Weight):** An XGBoost production champion trained on the ISCX 2016 URL dataset
+   to evaluate 79 mathematical and structural dimensions natively.
+2. **Contextual Linguistic Intelligence (40% Weight):** A fine-tuned Hugging Face Deep Transformer (
+   `microsoft/MiniLM-L12-H384-uncased`) evaluating the raw URL semantics and text sequences via attention masks.
+3. **Visual Convolutional Intelligence (20% Weight):** A roadmap CNN pipeline tracking Playwright browser screenshots
+   scaled for ImageNet tensors to catch brand spoofing.
 
-The backend is modularized via FastAPI, containerized using Docker, and utilizes a Logistic Calibrated Matrix to
-aggregate predictions and eliminate "alarm fatigue," displaying results through a Streamlit dashboard.
+The system is decoupled into strict microservice boundaries utilizing FastAPI for the backend gateway and Streamlit for
+the user dashboard.
 
 ---
 
@@ -30,22 +30,12 @@ aggregate predictions and eliminate "alarm fatigue," displaying results through 
 
 For a deep dive into the methodology and technical details, please refer to the following documents:
 
-* [System Architecture](docs/architecture.md) - Details the Modular Data Pipeline, ML/DL Models, and App Deployment.
-* [Dataset Information](docs/dataset_info.md) - Explains the UCI Phishing dataset features and structure.
-
----
-
-## Architecture
-
-1. **Threat Intelligence Layer**: Live TTL caching of the OpenPhish database and local Apex domain whitelisting.
-2. **Production Machine Learning Engine**: Evaluates URLs structurally using the highly accurate XGBoost algorithm.
-3. **Experimental Deep Learning Engine**: A Dense Multi-Layer Perceptron (MLP) built in PyTorch with Batch Normalization
-   and Dropouts to evaluate non-linear patterns.
-4. **Inference Services**: A decoupled FastAPI backend (`app/main.py` -> `app/services/`) that loads models via a
-   Registry, applies Logistic Calibrated Penalties, and serves consensus predictions.
-5. **User Interface**: Streamlit dashboard (`app/dashboard.py`) for security analysts to test web profile vectors and
-   raw URLs natively.
-6. **MLOps Orchestration**: Multi-container deployment managed via `docker-compose`.
+* [System Architecture](docs/ARCHITECTURE.md) - Details the Decoupled Service Topologies, NLP Transformer flows, and
+  Soft-Voting Aggregation.
+* [Data Registry & Provenance](docs/DATASETS.md) - Explains the ISCX tabular schema and the Kaggle PhiUSIIL NLP text
+  structures.
+* [Visual CNN Roadmap](docs/VISION_TODO.md) - The SSoT guide for downloading the PhishIntention CRP image sets and
+  implementing the visual branch.
 
 ---
 
@@ -53,70 +43,86 @@ For a deep dive into the methodology and technical details, please refer to the 
 
 ### 1. Prerequisites
 
-- Docker and Docker Compose installed on your machine.
-- *(Optional)* Python 3.9+ if running locally without Docker.
+- **Python 3.12+** installed on your local machine (required for NumPy compatibility and initial model training).
+- **Docker** and **Docker Compose** installed.
 
-### 2. Running with Docker (Recommended)
+### 2. Local Setup & Model Training (Required First)
 
-The easiest way to boot the entire platform (both the FastAPI backend and Streamlit frontend) is using Docker Compose.
+Before running the APIs or building containers, you must train the models locally so the weights are available in the
+`models/` directory.
 
-Ensure you have your models trained and saved in the `models/` folder (or run the training scripts first). Then execute:
+Create a virtual environment:
+
+```bash
+python -m venv .venv
+```
+
+Activate the environment (Windows):
+
+```bash
+.venv\Scripts\activate
+```
+
+Activate the environment (Mac/Linux):
+
+```bash
+source .venv/bin/activate
+```
+
+Install the strictly locked dependencies:
+
+```bash
+pip install -r requirements.min.versions.txt
+```
+
+*(Ensure you have placed the ISCX and PhiUSIIL datasets into the `data/` directory per the docs).*
+
+Train the Tabular XGBoost model:
+
+```bash
+python src/train_tabular.py
+```
+
+Train the NLP MiniLM model:
+
+```bash
+python src/train_nlp.py
+```
+
+### 3. Local Development Setup (Running Without Docker)
+
+Once models are trained, you can run the microservices locally in two separate terminals.
+
+**Terminal 1 (Backend API):**
+
+```bash
+uvicorn app.main:app --reload --port 8000
+```
+
+**Terminal 2 (Frontend UI):**
+
+```bash
+streamlit run app/ui.py --server.port 8501
+```
+
+### 4. Containerized Deployment (Running With Docker)
+
+The easiest way to boot the entire platform securely for production is using Docker Compose. Make sure your models were
+successfully saved in Step 2.
+
+Copy the environment template:
+
+```bash
+cp .env.example .env
+```
+
+Build and spin up the microservices:
 
 ```bash
 docker-compose up --build
 ```
 
-- The **FastAPI Backend** will be available at: http://localhost:8000
-- The **Streamlit Dashboard** will be available at: http://localhost:8501
-
-### 3. Local Development Setup (Without Docker)
-
-Clone the repository and create a virtual environment:
-
-```bash
-python -m venv venv
-# On Windows
-venv\Scripts\activate
-# On Mac/Linux
-source venv/bin/activate
-```
-
-Install dependencies:
-
-```bash
-pip install -r requirements.txt
-```
-
-Train the models:
-
-```bash
-python train_ml.py
-python train_ann.py
-```
-
-Run the application in two separate terminals:
-
-**Terminal 1 (Backend):**
-
-```bash
-uvicorn app.main:app --reload
-```
-
-**Terminal 2 (Frontend):**
-
-```bash
-streamlit run app/dashboard.py
-```
-
----
-
-## Future Scope (Max Version)
-
-The roadmap for this platform includes scaling into a Multi-Modal architecture:
-
-* **NLP Linguistic Engine**: Integrating a fine-tuned `distilroberta-base` Transformer to analyze raw URL strings for
-  malicious subdomains.
-* **Computer Vision Engine**: Utilizing a pre-trained `EfficientNet-B0` CNN to analyze website screenshots for spatial
-  layout anomalies and brand logo spoofing.
+- The **FastAPI Backend Gateway** will be available at: http://localhost:8000
+- The **Streamlit User Dashboard** will be available at: http://localhost:8501
 
 ---

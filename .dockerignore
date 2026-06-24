@@ -1,9 +1,10 @@
-venv/
-env/
-__pycache__/
-*.pyc
+.git
+.gitignore
 .env
-.git/
+.venv
+notebooks/
+docs/
+data/
+models/
+__pycache__/
 *.ipynb
-.ipynb_checkpoints/
-.DS_Store
