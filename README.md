@@ -11,22 +11,24 @@
 Phishing attacks remain one of the most pervasive cyber threats. This project is a **Phishing Detection System** that
 automatically evaluates suspicious URLs using a production-grade **Layered Multi-Modal Architecture**.
 
-Instead of relying solely on isolated machine learning models, this platform utilizes a **Soft-Voting Fusion
-Aggregator** that combines:
+Instead of relying solely on isolated machine learning models, this platform utilizes a **Soft-Voting Fusion Aggregator
+** that combines:
 
-1. **Tabular Structural Intelligence (40% Weight):** An XGBoost production champion trained on the ISCX 2016 URL dataset
-   to evaluate 79 mathematical and structural dimensions natively.
+1. **Tabular Structural Intelligence (40% Weight):** An XGBoost production champion trained on the ISCX 2016 URL
+   dataset. Natively evaluates exactly 79 mathematical and lexical dimensions (incorporating an enterprise domain
+   whitelist to eliminate false positives).
 2. **Contextual Linguistic Intelligence (40% Weight):** A fine-tuned Hugging Face Deep Transformer (
    `microsoft/MiniLM-L12-H384-uncased`) evaluating the raw URL semantics and text sequences via attention masks.
-3. **Visual Convolutional Intelligence (20% Weight):** A roadmap CNN pipeline tracking Playwright browser screenshots
-   scaled for ImageNet tensors to catch brand spoofing.
+3. **Visual Convolutional Intelligence (20% Weight - MOCKED/TODO):** A roadmap CNN pipeline tracking Playwright browser
+   screenshots scaled for ImageNet tensors to catch brand spoofing. *(Currently mocked in the UI while in active
+   development)*.
 
 The system is decoupled into strict microservice boundaries utilizing FastAPI for the backend gateway and Streamlit for
 the user dashboard.
 
 ---
 
-## Documentation
+## Documentation & Research
 
 For a deep dive into the methodology and technical details, please refer to the following documents:
 
@@ -36,6 +38,18 @@ For a deep dive into the methodology and technical details, please refer to the 
   structures.
 * [Visual CNN Roadmap](docs/VISION_TODO.md) - The SSoT guide for downloading the PhishIntention CRP image sets and
   implementing the visual branch.
+
+### Validation Notebooks (`notebooks/`)
+
+The repository contains proof-of-implementation research notebooks validating our architectural choices:
+
+1. `01_eda_tabular_datasets.ipynb`: Analyzes ISCX dataset class distributions and handles Infinity/NaN value scrubbing.
+2. `02_model_arena_tabular.ipynb`: Benchmarks 9 distinct ML algorithms, proving XGBoost's superiority via ROC-AUC
+   scores.
+3. `03_nlp_transformer_exploration.ipynb`: Verifies the MiniLM tokenizer preserves critical structural URL delimiters (
+   `-`, `.`, `/`).
+4. `04_feature_extraction_validation.ipynb`: Proves the offline mathematical extractor perfectly replicates the
+   79-dimension ISCX matrix shape.
 
 ---
 

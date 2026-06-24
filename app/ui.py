@@ -16,6 +16,8 @@ This platform uses **Soft-Voting Ensembled Intelligence** combining:
 3. **Visual CNN Engine** (Roadmap CNN layout screening)
 """)
 
+st.info("ℹ️ **Roadmap Notice:** The Visual CNN Engine (Playwright + EfficientNet) is currently in active development. Any CNN scores shown in the UI are mocked placeholders (TODO).")
+
 url_input = st.text_input("Enter a suspicious URL to analyze:", placeholder="https://secure-login.verify.com")
 
 if st.button("🚀 Analyze Threat Level", use_container_width=True):
@@ -53,8 +55,8 @@ if st.button("🚀 Analyze Threat Level", use_container_width=True):
                     )
                     c3.metric(
                         "Vision (CNN)", 
-                        f"{result['components']['vision_cnn_probability']*100:.1f}%", 
-                        help="Mock prediction of visual screen rendering via Playwright"
+                        f"{result['components']['vision_cnn_probability']*100:.1f}% (MOCKED)", 
+                        help="TODO: Visual CNN Engine is currently inactive. This is a mocked placeholder."
                     )
                     
                 else:

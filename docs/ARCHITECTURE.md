@@ -24,11 +24,11 @@ graph TR
     end
 
     %% Decoupled Branch Routing Logic Split
-    API -->|Imported Strategy Route 1: Local Lexical Processing| FE[src/feature_extractor.py Library]
-    API -->|Imported Strategy Route 2: Sequential Linguistic Mapping| Tokenizer[Hugging Face Transformer Tokenizer]
+    API -->|Imported Route 1: Offline Lexical Extractor| FE[src/feature_extractor.py: 79-Feature Math & Whitelist]
+    API -->|Imported Route 2: Sequential Linguistic Mapping| Tokenizer[Hugging Face Transformer Tokenizer]
     
     %% Tabular Execution Track
-    FE -->|Compiles 79 Numerical Features Offline| TabPipeline[src/tabular_pipeline.py]
+    FE -->|Generates 79-Dimension Float Vector| TabPipeline[src/tabular_pipeline.py]
     TabPipeline -->|Generates Model-Ready Vector| XGB[Trained Production Tabular Champion: XGBoost Model]
     
     %% Deep NLP Execution Track
@@ -76,9 +76,16 @@ If the fused sum evaluates over 0.75, it triggers a `Phishing` verdict. Values b
 
 ## 2. Decoupled Directory Responsibilities
 
-* **`src/feature_extractor.py`**: Compiles 79 ISCX features entirely offline without network bottlenecks.
-* **`src/tabular_pipeline.py`**: Target transformation and imputation logic standardizing input states.
+* **`src/feature_extractor.py`**: Compiles exactly 79 mathematical and structural ISCX features entirely offline.
+  Includes an **Enterprise Whitelist** (Google, Microsoft, Amazon, etc.) to immediately bypass the ML model and prevent
+  false positives on highly trusted domains.
+* **`src/tabular_pipeline.py`**: Target transformation and imputation logic standardizing input states (handles
+  scrubbing of `np.inf` values).
 * **`app/main.py`**: The FastAPI Gateway loading binaries via ContextLib lifespan methods for maximum speed and safety.
-* **`app/ui.py`**: Lightweight Streamlit client that never interacts with raw models directly.
+  Implements the soft-voting matrix.
+* **`app/ui.py`**: Lightweight Streamlit client that never interacts with raw models directly. Explicitly informs users
+  that the Vision CNN branch is currently a mocked placeholder in the roadmap.
+* **`notebooks/`**: Four targeted `.ipynb` research sandboxes verifying EDA, NLP token limits, model arena baselines,
+  and proving the exact 79-feature extraction mathematical pipeline.
 
 ---
