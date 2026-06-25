@@ -7,7 +7,7 @@ clean dependency management, and fault tolerance.
 ## Architecture Flow Diagram
 
 ```mermaid
-graph TR
+flowchart TD
     %% Interface Layer
     User[Web Client Browser Engine] <-->|Interacts with Dashboard Interface| UI[Streamlit User Interface Service]
     
