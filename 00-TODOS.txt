@@ -1,2 +1,0 @@
-1) build docker images and run the containers to test the application
-2) update docs as requirements files and docker files updated
