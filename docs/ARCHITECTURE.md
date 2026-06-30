@@ -87,5 +87,14 @@ If the fused sum evaluates over 0.75, it triggers a `Phishing` verdict. Values b
   that the Vision CNN branch is currently a mocked placeholder in the roadmap.
 * **`notebooks/`**: Four targeted `.ipynb` research sandboxes verifying EDA, NLP token limits, model arena baselines,
   and proving the exact 79-feature extraction mathematical pipeline.
+* **Requirements & Docker Topologies**:
+    * `requirements.local.txt`, `requirements.txt`, `requirements.min.txt`: Environment-specific dependency locks for
+      local development and GPU-accelerated model training.
+    * `requirements.docker.api.txt` / `Dockerfile.api`: Strictly scopes dependencies to backend-only libraries, building
+      a minimal image for the FastAPI Gateway.
+    * `requirements.docker.ui.txt` / `Dockerfile.ui`: Strictly scopes dependencies to frontend-only libraries, building
+      a minimal image for the Streamlit Dashboard.
+    * `docker-compose.yml`: Orchestrates the microservices, bridging the UI and API over an internal network while
+      allocating NVIDIA capabilities.
 
 ---

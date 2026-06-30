@@ -83,11 +83,15 @@ Activate the environment (Mac/Linux):
 source .venv/bin/activate
 ```
 
-Install the strictly locked dependencies:
+Install the local development dependencies:
 
 ```bash
-pip install -r requirements.min.versions.txt
+pip install -r requirements.local.txt
 ```
+
+*(Note: The project uses separated requirement files: `requirements.local.txt` for local
+development, `requirements.docker.api.txt` and `requirements.docker.ui.txt` for minimal container builds,
+and `requirements.txt`/`requirements.min.txt` for standard environments).*
 
 *(Ensure you have placed the ISCX and PhiUSIIL datasets into the `data/` directory per the docs).*
 
@@ -134,6 +138,18 @@ Build and spin up the microservices:
 
 ```bash
 docker-compose up --build
+```
+
+Just build the containers without running:
+
+```bash
+docker-compose build
+```
+
+Just run the containers without rebuilding:
+
+```bash
+docker-compose up
 ```
 
 - The **FastAPI Backend Gateway** will be available at: http://localhost:8000
