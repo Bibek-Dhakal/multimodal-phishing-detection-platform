@@ -40,7 +40,8 @@ def train_tabular_models():
         "AdaBoost": AdaBoostClassifier(random_state=42),
         "ANN (MLP)": make_pipeline(StandardScaler(),
                                    MLPClassifier(hidden_layer_sizes=(64, 32), max_iter=500, random_state=42)),
-        "XGBoost": XGBClassifier(eval_metric='logloss', random_state=42)
+        # PRO FIX: Wrapping XGBoost in a Calibrator to ensure organic probabilities (not just 100% or 0%)
+        "XGBoost": CalibratedClassifierCV(XGBClassifier(eval_metric='logloss', random_state=42), method='sigmoid', cv=5)
     }
 
     best_f1 = 0

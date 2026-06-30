@@ -58,10 +58,23 @@ def train_minilm():
     if 'label' not in df.columns:
         raise ValueError("Missing exact 'label' column in Kaggle PhiUSIIL dataset.")
         
+    # --- PRO FIX: BALANCE THE DATASET TO PREVENT CLASS COLLAPSE ---
+    print("[*] Balancing dataset to prevent NLP majority-class bias...")
+    df_phishing = df[df['label'] == 1]
+    df_benign = df[df['label'] == 0]
+
+    # Downsample the majority class to exactly match the minority class
+    min_class_size = min(len(df_phishing), len(df_benign))
+    df_phishing_balanced = df_phishing.sample(n=min_class_size, random_state=42)
+    df_benign_balanced = df_benign.sample(n=min_class_size, random_state=42)
+
+    # Combine and shuffle them
+    df_balanced = pd.concat([df_phishing_balanced, df_benign_balanced]).sample(frac=1, random_state=42).reset_index(drop=True)
+
     # Preprocessing: Lowercase the URLs but heavily preserve delimiters (-, ., /, ?) 
-    # as they act as vital structural signals for typosquatting detection.
-    urls = df['URL'].astype(str).str.lower().tolist()
-    labels = df['label'].astype(int).tolist()
+    urls = df_balanced['URL'].astype(str).str.lower().tolist()
+    labels = df_balanced['label'].astype(int).tolist()
+    # ---------------------------------------------------------------
     
     urls_train, urls_test, y_train, y_test = train_test_split(urls, labels, test_size=0.2, random_state=42)
 
