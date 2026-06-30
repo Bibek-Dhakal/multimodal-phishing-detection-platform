@@ -3,6 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.api
+      network: host  # Bypass virtual bridge to prevent connection drop timeouts
     container_name: phishing_api
     ports:
       - "8000:8000"
@@ -10,7 +11,14 @@ services:
       - .env
     volumes:
       - .:/app
-  
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [ gpu ]
+
   ui_dashboard:
     build:
       context: .
