@@ -1,4 +1,4 @@
-# Multi-Modal Phishing Intelligence & Defense Platform
+_# Multi-Modal Phishing Intelligence & Defense Platform
 
 ![Python](https://img.shields.io/badge/Python-3.12%2B-blue)
 ![PyTorch](https://img.shields.io/badge/PyTorch-Deep%20Learning-ee4c2c)
